@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간 식단 플래너</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g:#27ae60;--gl:#e8f8f0;
+  --d:#e74c3c;--dl:#fde8e6;
+  --t:#8e44ad;--tl:#f3e8fd;
+  --bg:#f5f6fa;--card:#fff;--text:#2c3e50;--muted:#7f8c8d;--border:#ecf0f1
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:28px 20px;text-align:center}
+.header h1{font-size:1.8rem;font-weight:800;margin-bottom:6px}
+.week-label{font-size:1rem;opacity:.9;margin-bottom:3px}
+.auto-note{font-size:.8rem;opacity:.65}
+.legend{display:flex;justify-content:center;gap:20px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:7px;font-size:.85rem;font-weight:600}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.g{background:var(--g)}.dot.d{background:var(--d)}.dot.t{background:var(--t)}
+.nav{display:flex;justify-content:center;gap:10px;padding:14px 20px;background:#fff;border-bottom:1px solid var(--border)}
+.nav button{padding:7px 18px;border:1.5px solid #667eea;color:#667eea;background:#fff;border-radius:20px;cursor:pointer;font-size:.85rem;font-weight:600;transition:.15s}
+.nav button:hover{background:#667eea;color:#fff}
+.nav button.cur{background:#667eea;color:#fff}
+.main{padding:20px;max-width:1400px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}.main{padding:12px}}
+@media(max-width:400px){.grid{grid-template-columns:1fr}}
+.day-card{background:var(--card);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:.2s}
+.day-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.1)}
+.day-card.today .dh{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.dh{padding:10px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.dh .dn{font-weight:700;font-size:.95rem}
+.dh .dd{font-size:.72rem;opacity:.85;margin-top:2px}
+.meals{padding:7px}
+.mi{padding:8px 9px;border-radius:9px;margin-bottom:5px;cursor:pointer;transition:.15s;border:1.5px solid transparent}
+.mi:last-child{margin-bottom:0}
+.mi:hover{transform:scale(1.02)}
+.mi.g{background:var(--gl);color:var(--g)}.mi.g:hover{border-color:var(--g)}
+.mi.d{background:var(--dl);color:var(--d)}.mi.d:hover{border-color:var(--d)}
+.mi.t{background:var(--tl);color:var(--t)}.mi.t:hover{border-color:var(--t)}
+.mt{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;opacity:.65;margin-bottom:1px}
+.mn{font-size:.78rem;font-weight:600;line-height:1.3}
+.me{font-size:.95rem;margin-bottom:1px}
+.stats{display:flex;justify-content:center;gap:16px;margin-top:20px;flex-wrap:wrap}
+.stat{text-align:center;padding:14px 22px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.sn{font-size:1.8rem;font-weight:800}
+.sl{font-size:.75rem;color:var(--muted);margin-top:3px}
+.stat.g .sn{color:var(--g)}.stat.d .sn{color:var(--d)}.stat.t .sn{color:var(--t)}
+.countdown-bar{text-align:center;padding:16px;color:var(--muted);font-size:.85rem;margin-top:4px}
+.countdown-bar span{font-weight:700;color:#667eea}
+.footer{text-align:center;padding:20px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:8px}
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.overlay.on{display:flex}
+.modal{background:#fff;border-radius:20px;max-width:540px;width:100%;max-height:85vh;overflow-y:auto;animation:mi .25s ease}
+@keyframes mi{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.mhd{padding:20px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0}
+.mbadge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;color:#fff;margin-bottom:8px}
+.mbadge.g{background:var(--g)}.mbadge.d{background:var(--d)}.mbadge.t{background:var(--t)}
+.mclose{float:right;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);line-height:1}
+.mclose:hover{color:var(--text)}
+.mtitle{font-size:1.25rem;font-weight:800;line-height:1.3}
+.mmeta{font-size:.8rem;color:var(--muted);margin-top:6px}
+.mbody{padding:18px 20px 22px}
+.sec{font-size:.95rem;font-weight:700;margin:16px 0 10px;display:flex;align-items:center;gap:6px}
+.sec:first-child{margin-top:0}
+.igrid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:4px}
+.ig{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg);border-radius:8px;font-size:.82rem}
+.ia{color:var(--muted);font-size:.78rem}
+.steps{list-style:none}
+.step{display:flex;gap:10px;margin-bottom:10px;font-size:.88rem;line-height:1.55}
+.snum{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;margin-top:2px}
+.snum.g{background:var(--g)}.snum.d{background:var(--d)}.snum.t{background:var(--t)}
+.tip{background:#fffbf0;border:1px solid #f5d76e;border-radius:10px;padding:11px 13px;margin-top:14px;font-size:.82rem;color:#7d6608;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍱 주간 식단 플래너</h1>
+  <div class="week-label" id="weekLabel"></div>
+  <div class="auto-note">매주 월요일 자동 업데이트 • 클릭하면 레시피를 볼 수 있어요</div>
+</div>
+
+<div class="legend">
+  <div class="li"><div class="dot g"></div>🥗 건강식 (1/3)</div>
+  <div class="li"><div class="dot d"></div>😋 맛난 음식 (1/3)</div>
+  <div class="li"><div class="dot t"></div>✨ 트렌디 음식 (1/3)</div>
+</div>
+
+<div class="nav">
+  <button onclick="changeWeek(-1)">◀ 이전 주</button>
+  <button class="cur" onclick="goNow()">이번 주</button>
+  <button onclick="changeWeek(1)">다음 주 ▶</button>
+</div>
+
+<div class="main">
+  <div class="grid" id="grid"></div>
+  <div class="stats" id="stats"></div>
+  <div class="countdown-bar" id="cd"></div>
+</div>
+
+<div class="footer">🌿 건강하고 맛있는 한 주 되세요!</div>
+
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="mhd">
+      <button class="mclose" onclick="closeModal()">✕</button>
+      <div class="mbadge" id="mbadge"></div>
+      <div class="mtitle" id="mtitle"></div>
+      <div class="mmeta" id="mmeta"></div>
+    </div>
+    <div class="mbody">
+      <div class="sec">🛒 재료</div>
+      <div class="igrid" id="migrid"></div>
+      <div class="sec">👨‍🍳 레시피</div>
+      <ul class="steps" id="msteps"></ul>
+      <div class="tip" id="mtip"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MEAL DATABASE ──────────────────────────────────────────────────────────
+const DB = {
+healthy:[
+{name:'현미밥 미역국 정식',emoji:'🥣',time:'30분',cal:'약 420kcal',
+ ing:[{n:'현미',a:'1컵'},{n:'건미역',a:'10g'},{n:'시금치',a:'200g'},{n:'멸치육수',a:'4컵'},{n:'국간장',a:'1큰술'},{n:'참기름',a:'1큰술'},{n:'마늘',a:'2쪽'},{n:'소금',a:'약간'}],
+ steps:['현미를 씻어 30분 이상 불린 후 밥을 짓는다.','건미역은 찬물에 15분 불려 먹기 좋게 썬다.','냄비에 참기름 두르고 마늘 볶다가 미역 넣어 볶는다.','멸치육수 붓고 국간장으로 간해 10분 끓인다.','시금치는 끓는 물에 30초 데쳐 찬물에 헹군 후 참기름·소금으로 무친다.','현미밥, 미역국, 시금치나물을 상에 낸다.'],
+ tip:'현미는 전날 밤 불려두면 소화가 훨씬 잘 됩니다.'},
+
+{name:'귀리 오트밀 과일 볼',emoji:'🥗',time:'10분',cal:'약 320kcal',
+ ing:[{n:'귀리',a:'½컵'},{n:'우유(또는 귀리유)',a:'1컵'},{n:'바나나',a:'½개'},{n:'블루베리',a:'한 줌'},{n:'아몬드',a:'10알'},{n:'꿀',a:'1작은술'},{n:'시나몬',a:'약간'}],
+ steps:['귀리에 우유를 부어 전자레인지 2분 30초 돌린다.','잘 저어 1분 더 가열한다.','바나나를 슬라이스하고 블루베리를 준비한다.','오트밀 위에 과일, 아몬드를 올린다.','꿀과 시나몬을 뿌려 마무리한다.'],
+ tip:'전날 밤 귀리를 우유에 담가두는 오버나이트 오트밀로 만들면 더 부드럽습니다.'},
+
+{name:'닭가슴살 퀴노아 샐러드',emoji:'🥙',time:'25분',cal:'약 380kcal',
+ ing:[{n:'닭가슴살',a:'150g'},{n:'퀴노아',a:'½컵'},{n:'로메인',a:'3장'},{n:'방울토마토',a:'8개'},{n:'오이',a:'½개'},{n:'올리브오일',a:'2큰술'},{n:'레몬즙',a:'1큰술'},{n:'소금·후추',a:'약간'}],
+ steps:['퀴노아는 물에 씻어 2배 물로 15분 삶은 후 식힌다.','닭가슴살은 소금·후추 밑간 후 팬에서 앞뒤 각 4분 굽는다.','닭가슴살을 결대로 찢어둔다.','채소를 먹기 좋게 썬다.','올리브오일, 레몬즙, 소금으로 드레싱을 만든다.','모든 재료를 합쳐 드레싱을 뿌린다.'],
+ tip:'퀴노아 대신 렌틸콩을 써도 맛있어요. 드레싱에 디종 머스터드 1작은술을 추가하면 풍미가 올라갑니다.'},
+
+{name:'연어 레몬 구이 + 아스파라거스',emoji:'🐟',time:'20분',cal:'약 420kcal',
+ ing:[{n:'연어 필렛',a:'180g'},{n:'아스파라거스',a:'8대'},{n:'레몬',a:'½개'},{n:'올리브오일',a:'2큰술'},{n:'마늘',a:'2쪽'},{n:'소금·후추',a:'약간'},{n:'딜(허브)',a:'약간'}],
+ steps:['연어에 소금, 후추, 레몬즙으로 밑간한다.','아스파라거스 밑동을 꺾어 질긴 부분을 제거한다.','팬에 올리브오일 두르고 강불에 연어를 껍질면부터 3분 굽는다.','뒤집어 2분 더 구운 후 꺼낸다.','같은 팬에 마늘, 아스파라거스 넣어 2분 볶는다.','레몬 슬라이스와 딜을 올려 낸다.'],
+ tip:'연어는 중심이 살짝 분홍빛 남을 정도로 구워야 촉촉합니다.'},
+
+{name:'두부 스크램블 통밀 토스트',emoji:'🍞',time:'15분',cal:'약 350kcal',
+ ing:[{n:'단단한 두부',a:'200g'},{n:'통밀 식빵',a:'2장'},{n:'강황',a:'½작은술'},{n:'양파',a:'¼개'},{n:'파프리카',a:'½개'},{n:'올리브오일',a:'1큰술'},{n:'소금·후추',a:'약간'},{n:'파슬리',a:'약간'}],
+ steps:['두부는 키친타월로 눌러 물기를 뺀다.','양파, 파프리카를 잘게 썬다.','팬에 올리브오일 두르고 채소를 3분 볶는다.','두부를 손으로 부수어 넣고 강황, 소금, 후추로 간한다.','5분간 볶으며 수분을 날린다.','통밀 토스트 위에 올리고 파슬리를 뿌린다.'],
+ tip:'강황이 없으면 커리 파우더로 대체 가능합니다. 비건 식단으로도 완벽!'},
+
+{name:'콩나물 해장국 + 잡곡밥',emoji:'🍲',time:'25분',cal:'약 380kcal',
+ ing:[{n:'콩나물',a:'200g'},{n:'잡곡밥',a:'1공기'},{n:'고춧가루',a:'1큰술'},{n:'국간장',a:'1큰술'},{n:'마늘',a:'3쪽'},{n:'대파',a:'1대'},{n:'달걀',a:'1개'},{n:'멸치육수',a:'5컵'}],
+ steps:['콩나물은 씻어 뚜껑 닫고 육수와 함께 5분 삶는다 (중간에 뚜껑 열지 않기).','마늘, 고춧가루, 국간장을 넣어 10분 더 끓인다.','대파를 어슷 썰어 넣는다.','달걀을 풀어 넣고 30초 끓인다.','잡곡밥과 함께 낸다.'],
+ tip:'콩나물 삶을 때 뚜껑을 열면 비린내가 나니 반드시 뚜껑을 닫고 삶으세요.'},
+
+{name:'그릭 요거트 과일 볼',emoji:'🍓',time:'5분',cal:'약 280kcal',
+ ing:[{n:'플레인 그릭요거트',a:'200g'},{n:'딸기',a:'5개'},{n:'키위',a:'1개'},{n:'그래놀라',a:'3큰술'},{n:'꿀',a:'1작은술'},{n:'치아씨드',a:'1작은술'},{n:'민트',a:'약간'}],
+ steps:['그릭 요거트를 넓은 그릇에 펼친다.','딸기, 키위를 먹기 좋게 썬다.','요거트 위에 과일을 예쁘게 올린다.','그래놀라, 치아씨드를 뿌린다.','꿀을 가늘게 뿌리고 민트로 장식한다.'],
+ tip:'전날 냉장 보관하면 그래놀라가 눅눅해지니 먹기 직전에 올리세요.'},
+
+{name:'아보카도 달걀 토스트',emoji:'🥑',time:'12분',cal:'약 390kcal',
+ ing:[{n:'통밀 식빵',a:'2장'},{n:'아보카도',a:'1개'},{n:'달걀',a:'2개'},{n:'레몬즙',a:'½작은술'},{n:'소금·후추',a:'약간'},{n:'레드페퍼 플레이크',a:'약간'},{n:'올리브오일',a:'1작은술'}],
+ steps:['아보카도는 반으로 갈라 씨를 빼고 숟가락으로 파낸다.','아보카도에 레몬즙, 소금, 후추를 넣어 포크로 으깬다.','식빵을 토스터에 굽는다.','팬에 올리브오일 두르고 달걀을 원하는 정도로 익힌다.','토스트에 아보카도를 바르고 달걀을 올린다.','레드페퍼 플레이크와 후추를 뿌린다.'],
+ tip:'아보카도 갈변을 막으려면 레몬즙을 꼭 넣으세요.'},
+
+{name:'북어국 + 현미밥',emoji:'🍜',time:'30분',cal:'약 360kcal',
+ ing:[{n:'북어채',a:'30g'},{n:'현미',a:'1컵'},{n:'두부',a:'100g'},{n:'대파',a:'1대'},{n:'마늘',a:'3쪽'},{n:'참기름',a:'1큰술'},{n:'국간장',a:'1.5큰술'},{n:'달걀',a:'1개'}],
+ steps:['북어채를 물에 10분 불려 꼭 짜고 먹기 좋게 썬다.','냄비에 참기름 두르고 북어채를 2분 볶는다.','물 5컵 붓고 마늘 넣어 끓인다.','두부를 깍둑 썰어 넣고 국간장으로 간한다.','달걀을 풀어 넣고 대파 어슷 썰어 넣는다.','현미밥과 함께 낸다.'],
+ tip:'북어는 불리기 전 참기름에 먼저 볶으면 고소한 맛이 배가됩니다.'},
+
+{name:'렌틸콩 토마토 수프',emoji:'🍅',time:'35분',cal:'약 320kcal',
+ ing:[{n:'렌틸콩',a:'½컵'},{n:'토마토 통조림',a:'400g'},{n:'양파',a:'½개'},{n:'마늘',a:'3쪽'},{n:'큐민 파우더',a:'1작은술'},{n:'올리브오일',a:'2큰술'},{n:'채수',a:'3컵'},{n:'소금·후추',a:'약간'}],
+ steps:['렌틸콩은 씻어 30분 불린다.','냄비에 올리브오일 두르고 양파, 마늘을 5분 볶는다.','큐민 파우더 넣어 1분 더 볶는다.','토마토 통조림, 렌틸콩, 채수를 넣어 20분 끓인다.','소금, 후추로 간을 맞춘다.','핸드블렌더로 일부만 갈아 질감을 남긴다.'],
+ tip:'마지막에 레몬즙을 한 방울 넣으면 훨씬 생기있는 맛이 납니다.'},
+
+{name:'닭가슴살 고구마 도시락',emoji:'🍱',time:'30분',cal:'약 450kcal',
+ ing:[{n:'닭가슴살',a:'150g'},{n:'고구마',a:'1개(150g)'},{n:'브로콜리',a:'100g'},{n:'간장',a:'1큰술'},{n:'올리브오일',a:'1큰술'},{n:'마늘',a:'2쪽'},{n:'현미밥',a:'½공기'},{n:'소금·후추',a:'약간'}],
+ steps:['닭가슴살을 간장, 마늘, 올리브오일로 30분 재운다.','고구마는 전자레인지 5분 돌린 후 슬라이스한다.','브로콜리는 끓는 물에 2분 데친다.','팬에 닭가슴살을 앞뒤 각 5분 굽는다.','슬라이스해서 도시락에 밥, 닭, 고구마, 브로콜리를 담는다.'],
+ tip:'닭가슴살은 재워둔 시간이 길수록 더 촉촉합니다. 전날 밤 재워두세요.'},
+
+{name:'낫토 현미 덮밥',emoji:'🫘',time:'10분',cal:'약 380kcal',
+ ing:[{n:'낫토',a:'1팩(50g)'},{n:'현미밥',a:'1공기'},{n:'달걀노른자',a:'1개'},{n:'대파',a:'약간'},{n:'간장',a:'1작은술'},{n:'겨자',a:'½작은술'},{n:'참기름',a:'약간'},{n:'김',a:'½장'}],
+ steps:['낫토는 팩에서 꺼내 젓가락으로 100번 이상 저어 실을 충분히 뽑는다.','간장, 겨자를 넣어 섞는다.','현미밥 위에 낫토를 올린다.','달걀노른자를 중앙에 올린다.','대파 송송 썰어 올리고 참기름 두른다.','김을 부셔 올린다.'],
+ tip:'낫토는 잘 저을수록 건강에 좋은 성분이 증가한다고 알려져 있습니다.'},
+
+{name:'두부 된장찌개 (저지방)',emoji:'♨️',time:'20분',cal:'약 300kcal',
+ ing:[{n:'두부',a:'200g'},{n:'된장',a:'2큰술'},{n:'애호박',a:'½개'},{n:'버섯',a:'100g'},{n:'대파',a:'1대'},{n:'마늘',a:'2쪽'},{n:'멸치육수',a:'4컵'},{n:'청양고추',a:'1개'}],
+ steps:['멸치육수를 끓인다.','된장을 체에 걸러 육수에 푼다.','두부는 깍둑, 애호박은 반달, 버섯은 찢어 넣는다.','마늘, 청양고추를 넣고 10분 끓인다.','대파를 어슷 썰어 넣고 2분 더 끓인다.','잡곡밥과 함께 낸다.'],
+ tip:'된장은 체에 걸러 넣으면 덩어리 없이 깔끔합니다.'},
+
+{name:'나물 비빔밥 (현미)',emoji:'🌿',time:'25분',cal:'약 420kcal',
+ ing:[{n:'현미밥',a:'1공기'},{n:'시금치',a:'100g'},{n:'콩나물',a:'100g'},{n:'당근',a:'½개'},{n:'고사리',a:'50g'},{n:'고추장',a:'1.5큰술'},{n:'참기름',a:'1큰술'},{n:'통깨',a:'1작은술'}],
+ steps:['시금치, 콩나물, 당근을 각각 데쳐 참기름, 소금으로 무친다.','고사리는 물에 30분 불려 간장으로 볶는다.','현미밥을 그릇에 담는다.','나물들을 색깔별로 예쁘게 올린다.','고추장을 중앙에 올린다.','참기름 두르고 통깨 뿌려 비빈다.'],
+ tip:'달걀 프라이를 올리면 영양이 더욱 풍부해집니다.'},
+
+{name:'채소 쌈 + 보리밥',emoji:'🥬',time:'20분',cal:'약 350kcal',
+ ing:[{n:'보리밥',a:'1공기'},{n:'상추',a:'10장'},{n:'깻잎',a:'10장'},{n:'된장',a:'2큰술'},{n:'두부',a:'100g'},{n:'마늘',a:'반 통'},{n:'참기름',a:'1작은술'},{n:'풋고추',a:'3개'}],
+ steps:['보리밥을 짓는다.','두부를 구워 소금을 약간 뿌린다.','상추, 깻잎은 씻어 물기를 뺀다.','된장에 참기름을 넣어 쌈장을 만든다.','상추에 밥, 구운 두부, 마늘 한 쪽을 올린다.','쌈장을 조금 얹어 먹는다.'],
+ tip:'쌈장에 들기름을 넣으면 더 고소한 맛이 납니다.'},
+
+{name:'고등어 구이 + 무조림',emoji:'🐠',time:'30분',cal:'약 410kcal',
+ ing:[{n:'고등어',a:'1마리'},{n:'무',a:'200g'},{n:'간장',a:'2큰술'},{n:'설탕',a:'1큰술'},{n:'고춧가루',a:'1큰술'},{n:'마늘',a:'2쪽'},{n:'생강',a:'약간'},{n:'잡곡밥',a:'1공기'}],
+ steps:['고등어는 내장 제거 후 소금 뿌려 10분 재운다.','무는 1cm 두께로 썬다.','냄비에 무를 깔고 간장, 설탕, 고춧가루, 마늘 넣어 10분 조린다.','고등어는 달군 그릴 팬에 앞뒤 각 5분 굽는다.','잡곡밥과 함께 상에 낸다.'],
+ tip:'고등어 구울 때 키친타월로 물기를 최대한 제거해야 껍질이 바삭합니다.'},
+
+{name:'병아리콩 야채 카레',emoji:'🍛',time:'35분',cal:'약 440kcal',
+ ing:[{n:'병아리콩(통조림)',a:'200g'},{n:'카레 루',a:'2조각'},{n:'감자',a:'1개'},{n:'당근',a:'½개'},{n:'양파',a:'1개'},{n:'코코넛 밀크',a:'200ml'},{n:'현미밥',a:'1공기'},{n:'올리브오일',a:'1큰술'}],
+ steps:['감자, 당근, 양파를 깍둑 썬다.','냄비에 오일 두르고 양파를 5분 볶는다.','감자, 당근을 넣어 3분 볶는다.','물 2컵, 코코넛 밀크를 붓고 10분 끓인다.','카레 루와 병아리콩을 넣어 5분 더 끓인다.','현미밥과 함께 낸다.'],
+ tip:'코코넛 밀크를 넣으면 비건 카레가 되고 더 크리미한 맛이 납니다.'},
+
+{name:'통밀 스파게티 채소 볶음',emoji:'🍝',time:'25분',cal:'약 430kcal',
+ ing:[{n:'통밀 스파게티',a:'100g'},{n:'방울토마토',a:'10개'},{n:'시금치',a:'100g'},{n:'마늘',a:'3쪽'},{n:'올리브오일',a:'3큰술'},{n:'파마산치즈',a:'2큰술'},{n:'소금·후추',a:'약간'},{n:'레드페퍼',a:'약간'}],
+ steps:['소금 넣은 물에 파스타를 8분 삶는다 (삶은 물 ½컵 따로 보관).','팬에 올리브오일, 마늘을 넣어 약불로 2분 볶는다.','방울토마토를 넣어 터뜨리며 3분 볶는다.','시금치와 파스타를 넣는다.','삶은 물을 조금씩 넣으며 볶는다.','파마산 치즈, 후추로 마무리한다.'],
+ tip:'파스타 삶은 물을 소스에 넣으면 유화제 역할을 해 소스가 면에 잘 붙습니다.'},
+
+{name:'단호박 수프 + 통밀 빵',emoji:'🎃',time:'30분',cal:'약 360kcal',
+ ing:[{n:'단호박',a:'300g'},{n:'양파',a:'½개'},{n:'채수',a:'400ml'},{n:'우유',a:'200ml'},{n:'올리브오일',a:'1큰술'},{n:'소금·후추',a:'약간'},{n:'통밀빵',a:'2조각'},{n:'파슬리',a:'약간'}],
+ steps:['단호박을 전자레인지 5분 돌려 껍질 제거 후 썬다.','냄비에 올리브오일 두르고 양파를 3분 볶는다.','단호박, 채수를 넣어 15분 끓인다.','핸드블렌더로 곱게 간다.','우유를 넣어 원하는 농도로 희석한다.','소금, 후추로 간하고 파슬리 뿌려 낸다.'],
+ tip:'단호박 껍질은 수프에 넣어도 되지만 색이 탁해지므로 제거하는 게 좋습니다.'},
+
+{name:'냉이 된장국 + 보리밥',emoji:'🌱',time:'20분',cal:'약 340kcal',
+ ing:[{n:'냉이',a:'100g'},{n:'된장',a:'1.5큰술'},{n:'보리밥',a:'1공기'},{n:'두부',a:'50g'},{n:'멸치육수',a:'4컵'},{n:'마늘',a:'2쪽'},{n:'대파',a:'약간'}],
+ steps:['냉이는 뿌리 부분을 칼로 긁어 흙을 제거하고 씻는다.','멸치육수를 끓이고 된장을 체에 풀어 넣는다.','두부를 깍둑 썰어 넣는다.','냉이와 마늘을 넣어 5분 끓인다.','대파를 넣어 마무리한다.','보리밥과 함께 낸다.'],
+ tip:'냉이는 봄 제철 나물로 해독 효과가 탁월합니다. 뿌리까지 먹는 게 좋아요.'},
+],
+
+delicious:[
+{name:'삼겹살 쌈 한 상',emoji:'🥩',time:'20분',cal:'약 620kcal',
+ ing:[{n:'삼겹살',a:'300g'},{n:'상추',a:'1팩'},{n:'깻잎',a:'20장'},{n:'마늘',a:'반 통'},{n:'쌈장',a:'3큰술'},{n:'소금·참기름',a:'약간'},{n:'풋고추',a:'5개'},{n:'된장',a:'1큰술'}],
+ steps:['삼겹살을 키친타월로 핏물 제거한다.','그릴 팬을 강불로 달군다.','삼겹살을 3cm 두께로 잘라 앞뒤 각 2분씩 굽는다.','상추, 깻잎을 씻어 물기를 뺀다.','마늘을 얇게 슬라이스한다.','쌈에 밥, 고기, 마늘, 쌈장을 올려 싼다.'],
+ tip:'삼겹살 구울 때 소금물을 살짝 뿌리면 잡냄새가 줄어듭니다.'},
+
+{name:'갈비찜',emoji:'🍖',time:'2시간',cal:'약 580kcal',
+ ing:[{n:'소갈비',a:'1kg'},{n:'간장',a:'5큰술'},{n:'설탕',a:'3큰술'},{n:'배',a:'½개'},{n:'마늘',a:'5쪽'},{n:'생강',a:'1쪽'},{n:'당근',a:'½개'},{n:'밤',a:'5개'}],
+ steps:['갈비를 찬물에 1시간 이상 담가 핏물을 뺀다.','끓는 물에 갈비를 5분 데쳐 기름을 제거한다.','배, 마늘, 생강을 갈아 양념장을 만든다.','간장, 설탕, 참기름을 섞어 양념을 완성한다.','갈비에 양념을 발라 1시간 재운다.','압력솥에 갈비, 당근, 밤을 넣어 30분 조린다.'],
+ tip:'배 대신 사이다 1캔을 넣으면 고기가 더 부드럽게 조려집니다.'},
+
+{name:'소불고기 덮밥',emoji:'🥩',time:'25분',cal:'약 530kcal',
+ ing:[{n:'불고기용 소고기',a:'200g'},{n:'간장',a:'3큰술'},{n:'설탕',a:'1큰술'},{n:'배즙',a:'2큰술'},{n:'마늘',a:'2쪽'},{n:'참기름',a:'1큰술'},{n:'대파',a:'1대'},{n:'밥',a:'1공기'}],
+ steps:['배즙, 간장, 설탕, 마늘, 참기름으로 양념을 만든다.','소고기에 양념을 넣어 30분 이상 재운다.','달군 팬에 소고기를 볶는다.','대파를 어슷 썰어 넣고 같이 볶는다.','밥 위에 불고기를 올린다.','달걀 프라이를 올리면 더 맛있다.'],
+ tip:'배즙이 없으면 키위즙을 사용하면 고기를 더 부드럽게 해줍니다.'},
+
+{name:'얼큰 김치찌개',emoji:'♨️',time:'25분',cal:'약 380kcal',
+ ing:[{n:'묵은지',a:'200g'},{n:'돼지고기(앞다리)',a:'150g'},{n:'두부',a:'100g'},{n:'대파',a:'1대'},{n:'고춧가루',a:'1큰술'},{n:'국간장',a:'1큰술'},{n:'참기름',a:'1큰술'},{n:'밥',a:'1공기'}],
+ steps:['묵은지를 먹기 좋게 썬다.','냄비에 참기름 두르고 돼지고기를 볶는다.','돼지고기가 익으면 김치를 넣어 함께 볶는다.','물 3컵을 붓고 15분 끓인다.','두부를 깍둑 썰어 넣고 5분 더 끓인다.','대파를 넣어 마무리한다.'],
+ tip:'김치찌개는 묵은지일수록 더 맛있습니다. 돼지고기 목살을 써도 좋아요.'},
+
+{name:'된장찌개 한 상',emoji:'🍲',time:'20분',cal:'약 340kcal',
+ ing:[{n:'된장',a:'2큰술'},{n:'두부',a:'200g'},{n:'애호박',a:'½개'},{n:'버섯',a:'100g'},{n:'감자',a:'½개'},{n:'멸치육수',a:'4컵'},{n:'마늘',a:'2쪽'},{n:'청양고추',a:'1개'}],
+ steps:['감자는 깍둑, 애호박은 반달, 두부는 큼직하게 썬다.','멸치육수를 끓이고 된장을 체에 풀어 넣는다.','감자를 먼저 넣어 5분 끓인다.','애호박, 버섯, 두부를 넣어 10분 끓인다.','마늘, 청양고추를 넣는다.','밥과 함께 낸다.'],
+ tip:'마지막에 국물을 한번 맛보고 싱거우면 소금 대신 된장을 조금 더 추가하세요.'},
+
+{name:'순대국밥',emoji:'🍜',time:'30분',cal:'약 520kcal',
+ ing:[{n:'순대',a:'200g'},{n:'돼지 앞다리 수육용',a:'200g'},{n:'국밥 육수',a:'5컵'},{n:'숙주나물',a:'100g'},{n:'새우젓',a:'1작은술'},{n:'다진 마늘',a:'1큰술'},{n:'대파',a:'1대'},{n:'밥',a:'1공기'}],
+ steps:['돼지고기를 끓는 물에 1시간 삶아 육수를 낸다.','순대를 쪄서 먹기 좋게 썬다.','숙주는 끓는 물에 30초 데친다.','육수를 다시 끓이고 새우젓으로 간한다.','그릇에 밥을 넣고 순대, 수육, 숙주를 올린다.','뜨거운 육수를 붓고 대파, 마늘을 올린다.'],
+ tip:'새우젓으로 간하면 더 깊은 맛이 납니다. 순댓국 기름장을 곁들이면 금상첨화!'},
+
+{name:'양념 치킨',emoji:'🍗',time:'40분',cal:'약 650kcal',
+ ing:[{n:'닭(절단육)',a:'1kg'},{n:'고추장',a:'3큰술'},{n:'케첩',a:'2큰술'},{n:'설탕',a:'2큰술'},{n:'마늘',a:'4쪽'},{n:'생강',a:'1쪽'},{n:'물엿',a:'1큰술'},{n:'후추',a:'약간'}],
+ steps:['닭에 소금, 후추로 밑간한다.','170°C 기름에 닭을 8분 튀긴다.','건져서 3분 휴지 후 190°C에 3분 한번 더 튀긴다.','고추장, 케첩, 설탕, 마늘, 물엿으로 소스를 만든다.','소스를 달군 팬에 넣어 끓인다.','튀긴 치킨을 소스에 버무린다.'],
+ tip:'두 번 튀기면(더블 튀김) 바삭함이 훨씬 오래 유지됩니다.'},
+
+{name:'참치 비빔밥',emoji:'🐟',time:'15분',cal:'약 490kcal',
+ ing:[{n:'밥',a:'1공기'},{n:'참치 통조림',a:'1캔'},{n:'시금치',a:'100g'},{n:'콩나물',a:'100g'},{n:'당근',a:'½개'},{n:'고추장',a:'1.5큰술'},{n:'참기름',a:'1큰술'},{n:'통깨',a:'약간'}],
+ steps:['참치는 기름을 완전히 빼고 팬에 볶는다.','시금치, 콩나물, 당근을 데쳐 나물로 무친다.','밥 위에 나물들을 색깔별로 담는다.','참치를 중앙에 올린다.','고추장, 참기름을 올린다.','달걀 프라이를 올리고 통깨를 뿌린다.'],
+ tip:'고추장에 매실액을 1작은술 넣으면 신맛이 더해져 맛이 깔끔합니다.'},
+
+{name:'삼계탕',emoji:'🍗',time:'2시간',cal:'약 580kcal',
+ ing:[{n:'영계',a:'1마리'},{n:'찹쌀',a:'½컵'},{n:'인삼',a:'1뿌리'},{n:'마늘',a:'10쪽'},{n:'대추',a:'5개'},{n:'밤',a:'3개'},{n:'소금·후추',a:'약간'},{n:'쪽파',a:'약간'}],
+ steps:['찹쌀을 1시간 이상 불린다.','닭 속을 깨끗이 씻고 찹쌀, 마늘, 인삼, 대추를 채운다.','닭의 다리를 교차하여 묶는다.','냄비에 닭을 넣고 물을 붓는다.','끓기 시작하면 약불로 줄여 1시간 30분 끓인다.','소금, 후추, 쪽파로 마무리한다.'],
+ tip:'인삼 대신 황기를 넣어도 몸에 좋습니다. 여름 보양식으로 최고!'},
+
+{name:'시원한 물냉면',emoji:'🍜',time:'15분',cal:'약 480kcal',
+ ing:[{n:'냉면 면',a:'1인분'},{n:'냉면 육수',a:'2컵'},{n:'오이',a:'½개'},{n:'수박무',a:'약간'},{n:'삶은 달걀',a:'1개'},{n:'수육',a:'100g'},{n:'식초',a:'2큰술'},{n:'겨자',a:'1작은술'}],
+ steps:['냉면 면을 끓는 물에 2분 삶아 찬물에 비벼 씻는다.','오이는 채 썰고 무는 식초에 절인다.','달걀을 반으로 자른다.','냉면 육수를 냉동실에 얼려 살얼음 상태로 만든다.','그릇에 면을 담고 육수를 붓는다.','오이, 수육, 달걀, 절인 무를 올린다.'],
+ tip:'식초와 겨자는 취향에 따라 넣어 드세요. 육수가 살얼음 상태일 때 가장 맛있습니다.'},
+
+{name:'보쌈 + 묵은지',emoji:'🥬',time:'2시간',cal:'약 590kcal',
+ ing:[{n:'돼지 목살(통)',a:'500g'},{n:'묵은지',a:'200g'},{n:'된장',a:'2큰술'},{n:'생강',a:'1쪽'},{n:'마늘',a:'5쪽'},{n:'대파',a:'1대'},{n:'상추',a:'10장'},{n:'새우젓',a:'약간'}],
+ steps:['된장, 생강, 마늘, 대파를 넣은 물에 돼지 목살을 삶는다.','1시간 30분 이상 삶아 젓가락이 쑥 들어가면 완성.','꺼내서 한 김 식힌 후 얇게 썬다.','묵은지는 양념을 씻어 꼭 짜서 썬다.','상추에 수육, 김치를 올리고 새우젓을 얹어 먹는다.'],
+ tip:'삶은 수육은 한 김 식혀야 잘 썰립니다. 따뜻할 때는 부스러집니다.'},
+
+{name:'부대찌개',emoji:'🍲',time:'25분',cal:'약 570kcal',
+ ing:[{n:'햄',a:'100g'},{n:'소시지',a:'100g'},{n:'베이컨',a:'50g'},{n:'김치',a:'150g'},{n:'두부',a:'100g'},{n:'라면 사리',a:'1개'},{n:'고추장',a:'1큰술'},{n:'다진 마늘',a:'1큰술'}],
+ steps:['육수를 끓인다 (멸치 또는 사골).','햄, 소시지, 베이컨을 적당한 크기로 썬다.','냄비에 재료를 예쁘게 담는다.','육수를 붓고 고추장, 마늘로 간한다.','끓기 시작하면 김치, 두부를 넣는다.','마지막에 라면 사리를 넣어 끓인다.'],
+ tip:'치즈 한 장을 마지막에 올리면 더욱 고소한 부대찌개가 됩니다.'},
+
+{name:'제육볶음 + 공기밥',emoji:'🍖',time:'20분',cal:'약 550kcal',
+ ing:[{n:'돼지 앞다리살',a:'300g'},{n:'고추장',a:'2큰술'},{n:'간장',a:'1큰술'},{n:'설탕',a:'1큰술'},{n:'마늘',a:'3쪽'},{n:'생강',a:'약간'},{n:'대파',a:'1대'},{n:'참기름',a:'1큰술'}],
+ steps:['돼지고기를 먹기 좋게 썬다.','고추장, 간장, 설탕, 마늘, 생강으로 양념을 만든다.','돼지고기에 양념을 넣어 30분 재운다.','달군 팬에 돼지고기를 볶는다.','대파를 어슷 썰어 넣고 2분 더 볶는다.','참기름을 두르고 마무리한다.'],
+ tip:'파를 처음부터 넣으면 타므로 불 끄기 직전에 넣으세요.'},
+
+{name:'설렁탕 + 깍두기',emoji:'🍜',time:'5시간',cal:'약 450kcal',
+ ing:[{n:'사골 뼈',a:'1kg'},{n:'양지',a:'300g'},{n:'대파',a:'2대'},{n:'마늘',a:'1통'},{n:'소금',a:'적당량'},{n:'국수 사리',a:'1개'},{n:'깍두기',a:'곁들임'},{n:'쪽파',a:'약간'}],
+ steps:['사골뼈를 찬물에 2시간 담가 핏물을 뺀다.','끓는 물에 뼈를 5분 데쳐 씻는다.','큰 냄비에 사골, 양지, 물을 넣어 강불로 끓인다.','끓어오르면 약불로 줄여 4시간 끓인다.','양지를 꺼내 얇게 썬다.','소금으로 간하고 국수, 수육, 쪽파를 올린다.'],
+ tip:'설렁탕은 오래 끓일수록 뽀얗고 깊은 맛이 납니다. 당일 못 먹으면 냉동 보관하세요.'},
+
+{name:'낙지볶음 + 공기밥',emoji:'🐙',time:'20분',cal:'약 380kcal',
+ ing:[{n:'낙지',a:'2마리'},{n:'고추장',a:'2큰술'},{n:'간장',a:'1큰술'},{n:'설탕',a:'1큰술'},{n:'마늘',a:'3쪽'},{n:'생강',a:'약간'},{n:'대파',a:'1대'},{n:'깨소금',a:'약간'}],
+ steps:['낙지를 밀가루로 주물러 씻고 끓는 물에 살짝 데친다.','낙지를 먹기 좋게 썬다.','고추장, 간장, 설탕, 마늘, 생강으로 양념장을 만든다.','달군 팬에 양념장을 넣어 볶는다.','낙지를 넣어 강불로 빠르게 볶는다 (1-2분).','대파를 넣고 깨소금을 뿌려 마무리한다.'],
+ tip:'낙지는 오래 볶으면 질겨지므로 강불에 재빠르게 볶는 것이 핵심입니다.'},
+
+{name:'닭볶음탕',emoji:'🍗',time:'45분',cal:'약 530kcal',
+ ing:[{n:'닭(절단육)',a:'700g'},{n:'고추장',a:'2큰술'},{n:'간장',a:'2큰술'},{n:'설탕',a:'1큰술'},{n:'감자',a:'2개'},{n:'당근',a:'½개'},{n:'대파',a:'2대'},{n:'마늘',a:'5쪽'}],
+ steps:['닭을 끓는 물에 3분 데쳐 기름을 제거한다.','고추장, 간장, 설탕, 마늘로 양념을 만든다.','냄비에 닭, 감자, 당근, 양념을 넣는다.','물 1컵 붓고 강불로 끓인다.','끓으면 중불로 줄여 20분 더 조린다.','대파를 넣어 5분 더 끓인다.'],
+ tip:'감자는 너무 일찍 넣으면 으스러지니 닭이 반쯤 익었을 때 넣으세요.'},
+
+{name:'순두부찌개',emoji:'♨️',time:'20분',cal:'약 320kcal',
+ ing:[{n:'순두부',a:'1봉(350g)'},{n:'조갯살',a:'100g'},{n:'고춧가루',a:'1큰술'},{n:'간장',a:'1큰술'},{n:'달걀',a:'1개'},{n:'마늘',a:'2쪽'},{n:'참기름',a:'1작은술'},{n:'대파',a:'½대'}],
+ steps:['냄비에 참기름 두르고 고춧가루를 볶는다.','조갯살을 넣어 볶는다.','물 2컵을 붓고 끓인다.','순두부를 숟가락으로 떠서 넣는다.','간장, 마늘로 간하고 5분 끓인다.','달걀을 깨서 넣고 대파를 올린다.'],
+ tip:'해물을 다양하게 넣을수록 더 깊은 맛이 납니다. 새우, 홍합, 꽃게도 좋아요.'},
+
+{name:'돼지갈비 구이',emoji:'🥩',time:'30분',cal:'약 600kcal',
+ ing:[{n:'돼지갈비',a:'500g'},{n:'간장',a:'4큰술'},{n:'설탕',a:'2큰술'},{n:'배즙',a:'3큰술'},{n:'마늘',a:'4쪽'},{n:'생강',a:'1쪽'},{n:'참기름',a:'1큰술'},{n:'후추',a:'약간'}],
+ steps:['갈비를 칼집 내고 찬물에 1시간 담가 핏물을 뺀다.','배즙, 간장, 설탕, 마늘, 생강, 참기름으로 양념장을 만든다.','갈비에 양념을 발라 1시간 이상 재운다.','그릴을 달궈 갈비를 앞뒤 각 6-7분 굽는다.','자주 뒤집어 타지 않게 주의한다.','상추쌈과 함께 낸다.'],
+ tip:'갈비는 재울 때 배즙이나 사이다를 넣으면 훨씬 부드러워집니다.'},
+
+{name:'해물파전 + 막걸리',emoji:'🥞',time:'25분',cal:'약 480kcal',
+ ing:[{n:'부침가루',a:'1컵'},{n:'오징어',a:'½마리'},{n:'새우',a:'100g'},{n:'쪽파',a:'10대'},{n:'달걀',a:'1개'},{n:'물',a:'½컵'},{n:'식용유',a:'3큰술'},{n:'양념간장',a:'3큰술'}],
+ steps:['부침가루, 달걀, 물을 섞어 반죽을 만든다.','오징어, 새우를 먹기 좋게 썬다.','팬에 기름을 넉넉히 두른다.','쪽파를 깔고 반죽을 붓는다.','해물을 올리고 반죽을 더 붓는다.','양면을 강불에 바삭하게 굽는다.'],
+ tip:'전은 처음부터 끝까지 강불에 구워야 바삭합니다. 약불로 구우면 질겨집니다.'},
+],
+
+trendy:[
+{name:'하와이안 포케 볼',emoji:'🌺',time:'20분',cal:'약 490kcal',
+ ing:[{n:'밥',a:'1공기'},{n:'연어',a:'150g'},{n:'아보카도',a:'½개'},{n:'에다마메',a:'50g'},{n:'오이',a:'⅓개'},{n:'간장',a:'2큰술'},{n:'참기름',a:'1큰술'},{n:'레몬즙',a:'1큰술'}],
+ steps:['연어를 2cm 큐브로 썬다.','간장, 참기름, 레몬즙으로 소스를 만든다.','연어를 소스에 10분 재운다.','에다마메는 끓는 물에 3분 데친다.','아보카도와 오이를 슬라이스한다.','밥 위에 모든 재료를 보기 좋게 올린다.'],
+ tip:'밥은 따뜻하게, 토핑은 차게 해야 온도 대비로 더 맛있습니다.'},
+
+{name:'코리안 퓨전 타코',emoji:'🌮',time:'30분',cal:'약 520kcal',
+ ing:[{n:'또르띠야',a:'3장'},{n:'불고기',a:'200g'},{n:'코리안 슬로우',a:'100g'},{n:'아보카도',a:'½개'},{n:'고추장 마요',a:'2큰술'},{n:'라임',a:'½개'},{n:'고수',a:'약간'},{n:'양파',a:'¼개'}],
+ steps:['불고기를 양념해 팬에 볶는다.','양배추, 당근을 채 썰어 식초, 설탕으로 슬로우를 만든다.','아보카도를 으깨 라임즙을 넣는다.','또르띠야를 팬에 살짝 굽는다.','고추장 마요 (고추장+마요네즈+레몬즙)를 만든다.','또르띠야에 아보카도, 불고기, 슬로우, 소스를 올린다.'],
+ tip:'고수를 싫어하면 생략해도 좋습니다. 대신 쪽파로 대체하세요.'},
+
+{name:'스시 브리또 롤',emoji:'🌯',time:'25분',cal:'약 510kcal',
+ ing:[{n:'밥',a:'1공기'},{n:'연어',a:'100g'},{n:'아보카도',a:'½개'},{n:'오이',a:'¼개'},{n:'김',a:'2장'},{n:'마요네즈',a:'2큰술'},{n:'스리라차',a:'1작은술'},{n:'참기름',a:'1작은술'}],
+ steps:['밥에 참기름, 소금, 식초를 넣어 스시밥을 만든다.','연어, 아보카도, 오이를 길게 썬다.','비닐랩 위에 김을 깔고 밥을 얇게 편다.','재료를 일렬로 올린다.','비닐랩을 이용해 김밥처럼 단단히 만다.','스리라차 마요를 뿌려 낸다.'],
+ tip:'초밥 재료는 다양하게 응용 가능합니다. 새우튀김, 참치, 크래미도 추천!'},
+
+{name:'스모크 BBQ 치킨 버거',emoji:'🍔',time:'35분',cal:'약 650kcal',
+ ing:[{n:'닭가슴살',a:'200g'},{n:'버거 번',a:'1개'},{n:'BBQ 소스',a:'3큰술'},{n:'체다 치즈',a:'1장'},{n:'양상추',a:'2장'},{n:'토마토',a:'2슬라이스'},{n:'마요네즈',a:'1큰술'},{n:'피클',a:'3조각'}],
+ steps:['닭가슴살을 두들겨 넓게 편다.','소금, 후추, 스모크 파프리카로 밑간한다.','팬에 버터 두르고 닭가슴살 앞뒤 각 5분 굽는다.','BBQ 소스를 발라 2분 더 굽는다.','번을 반으로 갈라 토스터에 굽는다.','번에 마요, 양상추, 치킨, 치즈, 토마토, 피클 순서로 올린다.'],
+ tip:'닭가슴살을 버터밀크에 2시간 재워두면 훨씬 부드럽습니다.'},
+
+{name:'하카타 스타일 돈코츠 라멘',emoji:'🍜',time:'40분',cal:'약 620kcal',
+ ing:[{n:'라멘 면',a:'1인분'},{n:'돈코츠 육수 팩',a:'1개'},{n:'차슈(돼지고기)',a:'3장'},{n:'반숙 달걀',a:'1개'},{n:'죽순',a:'30g'},{n:'노리',a:'1장'},{n:'대파',a:'약간'},{n:'참깨',a:'약간'}],
+ steps:['돈코츠 육수를 팩에 따라 끓인다.','차슈를 만든다 (삼겹살을 간장+설탕 소스에 조림).','달걀을 7분 삶아 반숙 만들고 간장에 절인다.','라멘 면을 2분 삶는다.','그릇에 육수를 담고 면을 넣는다.','차슈, 달걀, 죽순, 노리, 파, 참깨를 올린다.'],
+ tip:'육수에 무염 버터 한 조각을 넣으면 더 크리미한 맛이 납니다.'},
+
+{name:'비건 버섯 버거',emoji:'🍄',time:'25분',cal:'약 450kcal',
+ ing:[{n:'큰 버섯 (포토벨로)',a:'2개'},{n:'버거 번',a:'1개'},{n:'아보카도',a:'½개'},{n:'로메인',a:'2장'},{n:'토마토',a:'2슬라이스'},{n:'비건 마요',a:'1큰술'},{n:'간장',a:'2큰술'},{n:'발사믹',a:'1큰술'}],
+ steps:['포토벨로 버섯을 간장, 발사믹, 올리브오일로 30분 재운다.','그릴 팬에 버섯을 앞뒤 각 5분 굽는다.','아보카도를 으깨 레몬즙, 소금을 넣는다.','번을 반으로 갈라 굽는다.','아보카도 스프레드를 바른다.','로메인, 버섯, 토마토를 차례로 올린다.'],
+ tip:'포토벨로 버섯은 고기처럼 두껍고 쫄깃해서 버거 패티로 완벽합니다.'},
+
+{name:'크로플 에그 베네딕트 브런치',emoji:'🧇',time:'30분',cal:'약 580kcal',
+ ing:[{n:'크루아상',a:'2개'},{n:'달걀',a:'3개'},{n:'베이컨',a:'4조각'},{n:'홀란데이즈 소스',a:'3큰술'},{n:'식초',a:'1큰술'},{n:'버터',a:'2큰술'},{n:'레몬즙',a:'½큰술'},{n:'식용유',a:'약간'}],
+ steps:['크루아상을 반으로 갈라 와플 메이커로 3분 굽는다 (크로플 완성).','베이컨을 팬에 바삭하게 굽는다.','달걀노른자와 버터로 홀란데이즈 소스를 만든다.','냄비에 식초 넣은 물을 끓여 달걀을 넣어 포치드 에그를 만든다.','크로플 위에 베이컨, 포치드 에그를 올린다.','홀란데이즈 소스를 듬뿍 뿌린다.'],
+ tip:'포치드 에그는 물에 식초를 꼭 넣어야 흰자가 흩어지지 않고 예쁘게 모입니다.'},
+
+{name:'두바이 피스타치오 크레페',emoji:'🫐',time:'25분',cal:'약 520kcal',
+ ing:[{n:'크레페 반죽',a:'1컵'},{n:'피스타치오 페이스트',a:'3큰술'},{n:'카다이프 면',a:'50g'},{n:'버터',a:'2큰술'},{n:'초콜릿 소스',a:'2큰술'},{n:'딸기',a:'5개'},{n:'슈가파우더',a:'약간'}],
+ steps:['카다이프 면을 버터에 바삭하게 볶는다.','크레페 반죽으로 얇은 크레페를 굽는다.','피스타치오 페이스트를 크레페에 바른다.','카다이프 면을 올린다.','반으로 접거나 돌돌 만다.','초콜릿 소스, 딸기, 슈가파우더로 장식한다.'],
+ tip:'피스타치오 페이스트가 없으면 피스타치오 분말과 꿀을 섞어 대체하세요.'},
+
+{name:'갈릭 슈림프 파스타',emoji:'🍝',time:'25분',cal:'약 560kcal',
+ ing:[{n:'링귀네',a:'100g'},{n:'왕새우',a:'8마리'},{n:'마늘',a:'5쪽'},{n:'버터',a:'3큰술'},{n:'화이트 와인',a:'50ml'},{n:'레몬',a:'½개'},{n:'파슬리',a:'약간'},{n:'레드페퍼',a:'약간'}],
+ steps:['파스타를 소금물에 8분 삶는다.','새우는 내장 제거 후 소금, 후추로 밑간한다.','팬에 버터 1큰술로 새우를 앞뒤 1분씩 익혀 꺼낸다.','같은 팬에 버터, 마늘, 레드페퍼를 볶는다.','화이트 와인을 넣어 알코올을 날린다.','파스타, 새우, 레몬즙, 파슬리를 넣어 버무린다.'],
+ tip:'파스타 삶은 물을 소스에 넣으면 실크처럼 부드러운 소스가 됩니다.'},
+
+{name:'트러플 그릴드 치즈 샌드위치',emoji:'🧀',time:'15분',cal:'약 490kcal',
+ ing:[{n:'식빵 (두꺼운)',a:'2장'},{n:'체다 치즈',a:'2장'},{n:'그뤼에르 치즈',a:'30g'},{n:'버터',a:'2큰술'},{n:'트러플 오일',a:'½작은술'},{n:'마요네즈',a:'1큰술'},{n:'디종 머스터드',a:'½작은술'}],
+ steps:['빵 바깥면에 버터, 마요네즈를 섞어 바른다.','빵 안쪽에 디종 머스터드를 얇게 바른다.','치즈 두 종류를 빵 사이에 넣는다.','트러플 오일을 한 방울 뿌린다.','달군 팬에 약불로 뚜껑 닫고 3분 굽는다.','뒤집어 2분 더 구워 치즈를 완전히 녹인다.'],
+ tip:'약불에서 천천히 구워야 빵이 타지 않고 치즈가 골고루 녹습니다.'},
+
+{name:'한식 오마카세 도시락',emoji:'🍱',time:'45분',cal:'약 550kcal',
+ ing:[{n:'흑미밥',a:'1공기'},{n:'불고기',a:'100g'},{n:'게란말이',a:'2조각'},{n:'잡채',a:'100g'},{n:'깍두기',a:'30g'},{n:'멸치볶음',a:'20g'},{n:'브로콜리',a:'50g'},{n:'방울토마토',a:'3개'}],
+ steps:['흑미밥을 짓는다.','불고기를 양념해 볶는다.','달걀 3개로 계란말이를 만든다.','당면을 불려 잡채를 만든다.','브로콜리를 데친다.','도시락 박스에 색감을 고려해 예쁘게 담는다.'],
+ tip:'색감을 맞추는 것이 오마카세 도시락의 핵심입니다. 녹, 황, 적, 흑, 백 5가지 색을 담아보세요.'},
+
+{name:'멕시칸 부리또 볼',emoji:'🌯',time:'30분',cal:'약 580kcal',
+ ing:[{n:'밥',a:'1공기'},{n:'닭가슴살',a:'150g'},{n:'검정콩',a:'100g'},{n:'옥수수',a:'50g'},{n:'아보카도',a:'½개'},{n:'살사 소스',a:'3큰술'},{n:'사워크림',a:'2큰술'},{n:'라임',a:'½개'}],
+ steps:['닭가슴살을 큐민, 고수, 소금으로 밑간해 굽는다.','블랙빈은 시즈닝해 볶는다.','아보카도를 으깨 과카몰리를 만든다.','그릇에 밥을 담는다.','치킨, 콩, 옥수수, 과카몰리를 올린다.','살사 소스, 사워크림을 뿌린다.'],
+ tip:'라임을 마지막에 쥐어 짜면 전체 맛이 살아납니다.'},
+
+{name:'고메 핫도그 (트러플 마요)',emoji:'🌭',time:'20분',cal:'약 540kcal',
+ ing:[{n:'핫도그 빵',a:'2개'},{n:'소시지',a:'2개'},{n:'마요네즈',a:'2큰술'},{n:'트러플 오일',a:'½작은술'},{n:'케첩',a:'1큰술'},{n:'양파',a:'¼개'},{n:'오이 피클',a:'30g'},{n:'디종 머스터드',a:'1작은술'}],
+ steps:['소시지를 팬에 노릇하게 굽는다.','양파는 캐러멜라이즈 한다 (약불 15분).','마요네즈에 트러플 오일을 섞어 트러플 마요를 만든다.','핫도그 빵을 버터에 굽는다.','빵에 트러플 마요를 바른다.','소시지, 캐러멜 양파, 피클, 케첩, 머스터드를 올린다.'],
+ tip:'양파를 충분히 캐러멜라이즈하는 것이 핵심입니다. 갈색이 될 때까지 충분히!'},
+
+{name:'아보카도 무지개 김밥',emoji:'🌈',time:'30분',cal:'약 490kcal',
+ ing:[{n:'밥',a:'2공기'},{n:'김',a:'4장'},{n:'아보카도',a:'1개'},{n:'당근',a:'½개'},{n:'시금치',a:'100g'},{n:'참치',a:'1캔'},{n:'단무지',a:'5줄'},{n:'마요네즈',a:'2큰술'}],
+ steps:['밥에 소금, 참기름, 식초로 간한다.','당근은 채 썰어 볶고, 시금치는 데쳐 무친다.','참치는 기름 빼고 마요네즈로 버무린다.','아보카도는 길게 썬다.','김 위에 밥을 얇게 펴고 재료를 올린다.','꽉 눌러 말아 참기름 발라 썬다.'],
+ tip:'밥을 너무 두껍게 펴면 재료를 올리기 어렵습니다. 얇게 펴는 게 포인트!'},
+
+{name:'에그 베네딕트',emoji:'🍳',time:'25분',cal:'약 560kcal',
+ ing:[{n:'잉글리시 머핀',a:'2개'},{n:'캐나다 베이컨',a:'4장'},{n:'달걀',a:'4개'},{n:'버터',a:'100g'},{n:'달걀노른자',a:'2개'},{n:'레몬즙',a:'1큰술'},{n:'식초',a:'1큰술'},{n:'파슬리',a:'약간'}],
+ steps:['버터를 녹여 달걀노른자에 조금씩 부으며 홀란데이즈 소스를 만든다.','레몬즙, 소금으로 홀란데이즈 소스 간을 맞춘다.','머핀을 반으로 갈라 굽는다.','베이컨을 팬에 굽는다.','식초 넣은 끓는 물에 달걀을 넣어 포치드 에그를 만든다.','머핀에 베이컨, 포치드 에그, 소스 순서로 올린다.'],
+ tip:'홀란데이즈 소스는 만들기 어렵지만 시판 믹스를 사용해도 충분합니다.'},
+
+{name:'감바스 알 아히요 + 바게트',emoji:'🦐',time:'20분',cal:'약 500kcal',
+ ing:[{n:'새우',a:'15마리'},{n:'마늘',a:'8쪽'},{n:'올리브오일',a:'150ml'},{n:'버터',a:'2큰술'},{n:'청양고추',a:'2개'},{n:'바게트',a:'반 개'},{n:'파슬리',a:'약간'},{n:'소금',a:'약간'}],
+ steps:['새우는 내장 제거 후 소금으로 밑간한다.','내열 그릇에 올리브오일과 마늘 슬라이스를 담는다.','오븐 180°C에서 10분 익힌다.','새우와 청양고추를 넣고 5분 더 익힌다.','버터를 넣어 녹인다.','파슬리 뿌리고 바게트와 함께 낸다.'],
+ tip:'오일에 남은 마늘을 바게트에 올려 먹으면 정말 맛있습니다.'},
+
+{name:'스리라차 허니 치킨 토스트',emoji:'🍞',time:'20분',cal:'약 510kcal',
+ ing:[{n:'두꺼운 식빵',a:'2장'},{n:'닭가슴살',a:'150g'},{n:'스리라차',a:'1큰술'},{n:'꿀',a:'1큰술'},{n:'마요네즈',a:'2큰술'},{n:'양상추',a:'2장'},{n:'체다치즈',a:'1장'},{n:'버터',a:'1큰술'}],
+ steps:['닭가슴살을 얇게 편 후 소금, 후추로 밑간한다.','스리라차와 꿀을 1:1로 섞어 소스를 만든다.','팬에 버터 두르고 닭가슴살을 앞뒤 4분씩 굽는다.','닭에 스리라차 허니 소스를 발라 1분 더 굽는다.','빵을 굽고 마요네즈를 바른다.','양상추, 치킨, 치즈, 소스를 올린다.'],
+ tip:'꿀과 스리라차의 달콤하면서 매콤한 조합이 핵심입니다. 비율은 취향에 맞게!'},
+
+{name:'미소 라멘 + 군만두',emoji:'🥟',time:'30분',cal:'약 600kcal',
+ ing:[{n:'라멘 면',a:'1인분'},{n:'미소',a:'2큰술'},{n:'닭육수',a:'500ml'},{n:'두부',a:'100g'},{n:'만두',a:'5개'},{n:'버터',a:'1큰술'},{n:'대파',a:'약간'},{n:'옥수수',a:'50g'}],
+ steps:['닭육수를 끓이고 미소를 풀어 넣는다.','버터를 넣어 크리미하게 만든다.','두부를 깍둑 썰어 넣는다.','라멘 면을 2분 삶아 넣는다.','만두를 팬에 물 조금 넣고 뚜껑 덮어 5분 굽는다.','그릇에 라멘을 담고 만두, 옥수수, 대파를 올린다.'],
+ tip:'미소는 끓인 후에 넣어야 영양소가 파괴되지 않습니다.'},
+
+{name:'팟타이',emoji:'🍜',time:'25분',cal:'약 530kcal',
+ ing:[{n:'쌀국수',a:'100g'},{n:'새우',a:'10마리'},{n:'두부',a:'100g'},{n:'숙주',a:'100g'},{n:'달걀',a:'2개'},{n:'피시소스',a:'2큰술'},{n:'땅콩',a:'30g'},{n:'라임',a:'½개'}],
+ steps:['쌀국수를 미온수에 30분 불린다.','피시소스, 설탕, 타마린드소스로 팟타이 소스를 만든다.','팬에 기름 두르고 새우를 볶는다.','두부와 국수를 넣어 볶는다.','공간을 만들어 달걀을 스크램블한다.','숙주, 소스를 넣어 빠르게 볶는다.'],
+ tip:'팟타이는 강불에서 빠르게 볶는 것이 핵심입니다. 재료를 미리 준비하세요.'},
+]
+};
+
+// ── DATE UTILITIES ─────────────────────────────────────────────────────────
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return [d.getUTCFullYear(), Math.ceil((((d - yearStart) / 86400000) + 1) / 7)];
+}
+
+function getMondayOf(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function fmt(date) {
+  return `${date.getMonth()+1}월 ${date.getDate()}일`;
+}
+
+// ── SEEDED RNG ─────────────────────────────────────────────────────────────
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = Math.imul(1664525, s) + 1013904223 >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function shuffle(arr, rand) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── PLAN GENERATOR ─────────────────────────────────────────────────────────
+function generatePlan(year, week) {
+  const seed = year * 1000 + week;
+  const rand = rng(seed);
+
+  const cats = ['healthy', 'delicious', 'trendy'];
+  let pools = {};
+  cats.forEach(c => { pools[c] = shuffle(DB[c].map((_,i) => i), rand); });
+
+  // 21 slots: 7 per category
+  const slots = [];
+  for (let i = 0; i < 7; i++) slots.push({cat:'healthy', idx: pools.healthy[i % pools.healthy.length]});
+  for (let i = 0; i < 7; i++) slots.push({cat:'delicious', idx: pools.delicious[i % pools.delicious.length]});
+  for (let i = 0; i < 7; i++) slots.push({cat:'trendy', idx: pools.trendy[i % pools.trendy.length]});
+
+  const shuffled = shuffle(slots, rand);
+
+  // 7 days × 3 meals
+  const plan = [];
+  for (let d = 0; d < 7; d++) {
+    plan.push([shuffled[d*3], shuffled[d*3+1], shuffled[d*3+2]]);
+  }
+  return plan;
+}
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let weekOffset = 0;
+const DAYS = ['월','화','수','목','금','토','일'];
+const MEALS_KO = ['아침','점심','저녁'];
+const CAT_KO = {healthy:'🥗 건강식', delicious:'😋 맛난 음식', trendy:'✨ 트렌디'};
+const CAT_EN = {healthy:'g', delicious:'d', trendy:'t'};
+const CAT_FULL = {healthy:'건강식', delicious:'맛난 음식', trendy:'트렌디 음식'};
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function render() {
+  const today = new Date();
+  const monday = getMondayOf(today);
+  monday.setDate(monday.getDate() + weekOffset * 7);
+  const sunday = addDays(monday, 6);
+
+  const [year, week] = getISOWeek(monday);
+  const plan = generatePlan(year, week);
+
+  document.getElementById('weekLabel').textContent =
+    `${year}년 ${week}주차 (${fmt(monday)} ~ ${fmt(sunday)})`;
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  const todayStr = today.toDateString();
+
+  plan.forEach((dayMeals, di) => {
+    const dayDate = addDays(monday, di);
+    const isToday = weekOffset === 0 && dayDate.toDateString() === todayStr;
+
+    const card = document.createElement('div');
+    card.className = 'day-card' + (isToday ? ' today' : '');
+
+    card.innerHTML = `
+      <div class="dh">
+        <div class="dn">${DAYS[di]}요일${isToday ? ' 📍' : ''}</div>
+        <div class="dd">${fmt(dayDate)}</div>
+      </div>
+      <div class="meals">
+        ${dayMeals.map((slot, mi) => {
+          const meal = DB[slot.cat][slot.idx];
+          const cls = CAT_EN[slot.cat];
+          return `<div class="mi ${cls}" onclick="openModal('${slot.cat}',${slot.idx})">
+            <div class="mt">${MEALS_KO[mi]}</div>
+            <div class="me">${meal.emoji}</div>
+            <div class="mn">${meal.name}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  // Stats
+  const counts = {healthy:0, delicious:0, trendy:0};
+  plan.flat().forEach(s => counts[s.cat]++);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat g"><div class="sn">${counts.healthy}</div><div class="sl">🥗 건강식</div></div>
+    <div class="stat d"><div class="sn">${counts.delicious}</div><div class="sl">😋 맛난 음식</div></div>
+    <div class="stat t"><div class="sn">${counts.trendy}</div><div class="sl">✨ 트렌디</div></div>
+  `;
+
+  updateCountdown();
+}
+
+function updateCountdown() {
+  const now = new Date();
+  const nextMon = getMondayOf(now);
+  if (nextMon <= now) nextMon.setDate(nextMon.getDate() + 7);
+  const diff = nextMon - now;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const d = Math.floor(h / 24);
+  const hh = h % 24;
+  document.getElementById('cd').innerHTML =
+    `다음 월요일 업데이트까지: <span>${d}일 ${hh}시간 ${m}분 ${s}초</span>`;
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────────
+function openModal(cat, idx) {
+  const meal = DB[cat][idx];
+  const cls = CAT_EN[cat];
+
+  document.getElementById('mbadge').textContent = CAT_KO[cat];
+  document.getElementById('mbadge').className = `mbadge ${cls}`;
+  document.getElementById('mtitle').textContent = meal.emoji + ' ' + meal.name;
+  document.getElementById('mmeta').textContent = `⏱ ${meal.time}  |  🔥 ${meal.cal}`;
+
+  document.getElementById('migrid').innerHTML = meal.ing
+    .map(i => `<div class="ig"><span class="in">${i.n}</span><span class="ia">${i.a}</span></div>`)
+    .join('');
+
+  document.getElementById('msteps').innerHTML = meal.steps
+    .map((s, i) => `<li class="step"><span class="snum ${cls}">${i+1}</span><span>${s}</span></li>`)
+    .join('');
+
+  const tipEl = document.getElementById('mtip');
+  if (meal.tip) {
+    tipEl.textContent = '💡 ' + meal.tip;
+    tipEl.style.display = 'block';
+  } else {
+    tipEl.style.display = 'none';
+  }
+
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('modal').scrollTop = 0;
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('on');
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+// ── NAV ────────────────────────────────────────────────────────────────────
+function changeWeek(d) { weekOffset += d; render(); }
+function goNow() { weekOffset = 0; render(); }
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+render();
+setInterval(updateCountdown, 1000);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>
